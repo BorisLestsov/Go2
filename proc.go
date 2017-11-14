@@ -82,6 +82,8 @@ func proc(MyID int,
           gr graph.Graph,
           quitCh chan struct{},
           BaseTtl int) {
+
+    DEBUG_OUTPUT := false
     
     rand.Seed(int64(time.Now().Unix()) + int64(MyID))
 
@@ -106,7 +108,9 @@ func proc(MyID int,
     MyAddr,err := net.ResolveUDPAddr("udp","127.0.0.1:"+strconv.Itoa(MyPort))
     msg.CheckError(err)
 
-    fmt.Println(MyID, MyAddr, NeigAddrArr)
+    if DEBUG_OUTPUT {
+        fmt.Println(MyID, MyAddr, NeigAddrArr)
+    }
 
     MyConn, err := net.ListenUDP("udp", MyAddr)
     msg.CheckError(err)
@@ -125,16 +129,18 @@ func proc(MyID int,
     qCh2 := make(chan struct{}, 1)
 
     go ManageConn(MyConn, dataCh, timeoutCh, qCh1)
-    go ManageSendQueue(MyConn, taskCh, time.Microsecond * 1, qCh2)
+    go ManageSendQueue(MyConn, taskCh, time.Microsecond * 10, qCh2)
 
-    time.Sleep(time.Millisecond*1)
+    time.Sleep(time.Millisecond*10)
 
     // init gossip
     if MyID == 0 {
         Dst := rand.Intn(NeigAmt)
         SendAddr := NeigAddrArr[Dst]
         m := Task{msg.Message{ID_: 0, Type_: "msg", Sender_: 0, Origin_: 0, Data_: "kek"}, SendAddr}
-        fmt.Println(MyID, "sending", m, "to", SendAddr)
+        if DEBUG_OUTPUT {
+            fmt.Println(MyID, "sending", m, "to", SendAddr)
+        }
         taskCh <- m
 
         for index, _ := range AllGot {
@@ -145,7 +151,6 @@ func proc(MyID int,
 
     var m msg.Message
     ticks := 0
-    DEBUG_OUTPUT := true
 
     MainLoop:
     for {
@@ -175,7 +180,9 @@ func proc(MyID int,
                                 m.Sender_ = MyID
 
                                 // pass further
-                                fmt.Println(MyID, "sending", m, "to", SendAddr)
+                                if DEBUG_OUTPUT {
+                                    fmt.Println(MyID, "sending", m, "to", SendAddr)
+                                }
                                 taskCh <- Task{m, SendAddr}
                                 TtlMap[m.ID_] -= 1
                             }
@@ -197,11 +204,13 @@ func proc(MyID int,
                                 }
                                 SendAddr := NeigAddrArr[Dst]
                                 // send conf
-                                fmt.Println(MyID, "sending", m, "to", SendAddr)
+                                if DEBUG_OUTPUT {
+                                    fmt.Println(MyID, "sending", m, "to", SendAddr)
+                                }
                                 taskCh <- Task{m, SendAddr}
                                 TtlMap[confID] -= 1
                             }
-                        } else {
+                        } else if DEBUG_OUTPUT {
                                 fmt.Println(MyID, "discarded", m)
                         }
                     }
@@ -211,7 +220,9 @@ func proc(MyID int,
                         confID, err := strconv.Atoi(m.Data_)
                         msg.CheckError(err)
                         AllGot[confID] = true
-                        fmt.Println(AllGot)
+                        if DEBUG_OUTPUT{
+                            fmt.Println(AllGot)
+                        }
                         all := true
                         LocalLoop:
                         for i := range AllGot {
@@ -247,11 +258,13 @@ func proc(MyID int,
                                     m.Sender_ = MyID
 
                                     // pass further
-                                    fmt.Println(MyID, "sending", m, "to", SendAddr)
+                                    if DEBUG_OUTPUT {
+                                        fmt.Println(MyID, "sending", m, "to", SendAddr)
+                                    }
                                     taskCh <- Task{m, SendAddr}
                                     TtlMap[m.ID_] -= 1
                                 }
-                            } else {
+                            } else if DEBUG_OUTPUT {
                                 fmt.Println(MyID, "discarded", m)
                             }
                         }

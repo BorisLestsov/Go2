@@ -1,7 +1,7 @@
 package main
 
 import (
-    "fmt"
+    //"fmt"
     "math/rand"
     "time"
     "./graph"
@@ -21,7 +21,7 @@ func main() {
     BaseTtl, _   := strconv.Atoi(os.Args[5])
 
     gr := graph.Generate(NProc, MinDegree, MaxDegree, BasePort)
-    fmt.Println(gr)
+    //fmt.Println(gr)
 
     for i := 0; i < NProc; i++ {
         go proc(i, gr, quitCh, BaseTtl)
