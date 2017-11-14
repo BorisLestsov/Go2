@@ -157,9 +157,9 @@ func proc(MyID int,
         ticks += 1
         select {
             case m = <- dataCh: {
-                //if m.Type_ != "timeout" && DEBUG_OUTPUT {
+                if m.Type_ != "timeout" && DEBUG_OUTPUT {
                     fmt.Println(MyID, "got msg:", m)
-                //}
+                }
                 if m.Type_ == "msg" {
                     _, ok := TtlMap[m.ID_]
                     if !ok {
@@ -214,9 +214,9 @@ func proc(MyID int,
                         confID, err := strconv.Atoi(m.Data_)
                         msg.CheckError(err)
                         AllGot[confID] = true
-                       // if DEBUG_OUTPUT{
+                        if DEBUG_OUTPUT{
                             fmt.Println(AllGot)
-                        //}
+                        }
                         all := true
                         LocalLoop:
                         for i := range AllGot {
