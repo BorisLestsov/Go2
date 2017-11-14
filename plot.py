@@ -41,9 +41,12 @@ def main():
 	print vals
 	xticks = np.arange(len(vals))
 
+	width = 0.3
+
 	plt.figure(figsize=(10, 8))
-	plt.bar(xticks, vals, color='c')
+	plt.bar(xticks, vals, color='c', width=0.3)
 	plt.title("{} nodes, {}..{} degree, {} ttl".format(N, min_d, max_d, ttl))
+	plt.xticks(xticks+width/2, prob)
 	plt.xlabel("Packet loss probability")
 	plt.ylabel("Time (ticks)")
 
