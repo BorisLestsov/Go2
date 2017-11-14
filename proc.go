@@ -146,7 +146,7 @@ func proc(MyID int,
         for index, _ := range AllGot {
             AllGot[index] = false
         }
-
+        AllGot[MyID] = true
     }
 
     var m msg.Message
@@ -157,62 +157,56 @@ func proc(MyID int,
         ticks += 1
         select {
             case m = <- dataCh: {
-                if m.Type_ != "timeout" && DEBUG_OUTPUT {
-                    //fmt.Println(MyID, "got msg:", m)
-                }
+                //if m.Type_ != "timeout" && DEBUG_OUTPUT {
+                    fmt.Println(MyID, "got msg:", m)
+                //}
                 if m.Type_ == "msg" {
-                    if !(NeigAmt <= 1) {
-                        _, ok := TtlMap[m.ID_]
+                    _, ok := TtlMap[m.ID_]
+                    if !ok {
+                        TtlMap[m.ID_] = BaseTtl
+                    }
+
+                    
+                    if TtlMap[m.ID_] > 0 {
+                        for ; TtlMap[m.ID_] > 0; {
+                            //Dst := rand.Intn(NeigAmt)
+                            Dst := TtlMap[m.ID_] % NeigAmt
+                                //fmt.Println(Dst)
+                            SendAddr := NeigAddrArr[Dst]
+                            m.Sender_ = MyID
+
+                            // pass further
+                            if DEBUG_OUTPUT {
+                                fmt.Println(MyID, "sending", m, "to", SendAddr)
+                            }
+                            taskCh <- Task{m, SendAddr}
+                            TtlMap[m.ID_] -= 1
+                        }
+
+                        // ID of message with conf
+                        confID := m.ID_+BaseConfID+MyID
+                        _, ok = TtlMap[confID]
                         if !ok {
-                            TtlMap[m.ID_] = BaseTtl
+                            TtlMap[confID] = BaseTtl
                         }
 
-                        SenderTmp :=  m.Sender_
-                        
-                        if TtlMap[m.ID_] > 0 {
-                            for ; TtlMap[m.ID_] > 0; {
-                                Dst := rand.Intn(NeigAmt)
-                                for ; NeigIdArr[Dst] == SenderTmp ; {
-                                    Dst = rand.Intn(NeigAmt)
-                                    //fmt.Println(Dst)
-                                }
-                                SendAddr := NeigAddrArr[Dst]
-                                m.Sender_ = MyID
-
-                                // pass further
-                                if DEBUG_OUTPUT {
-                                    fmt.Println(MyID, "sending", m, "to", SendAddr)
-                                }
-                                taskCh <- Task{m, SendAddr}
-                                TtlMap[m.ID_] -= 1
+                        // conf msg
+                        m := msg.Message{ID_: confID, Type_: "conf", Sender_: MyID, Origin_: m.Origin_, Data_: strconv.Itoa(MyID)}
+                        //fmt.Println(MyID, TtlMap)
+                        for ; TtlMap[confID] > 0; {
+                            //st := rand.Intn(NeigAmt)
+                            Dst := TtlMap[confID] % NeigAmt
+                            SendAddr := NeigAddrArr[Dst]
+                            // send conf
+                            if DEBUG_OUTPUT {
+                                fmt.Println(MyID, "sending", m, "to", SendAddr)
                             }
-
-                            // ID of message with conf
-                            confID := m.ID_+BaseConfID+MyID
-                            _, ok = TtlMap[confID]
-                            if !ok {
-                                TtlMap[confID] = BaseTtl
-                            }
-
-                            // conf msg
-                            m := msg.Message{ID_: confID, Type_: "conf", Sender_: MyID, Origin_: m.Origin_, Data_: strconv.Itoa(MyID)}
-                            for ; TtlMap[confID] > 0; {
-                                Dst := rand.Intn(NeigAmt)
-                                for ; NeigIdArr[Dst] == SenderTmp ; {
-                                    Dst = rand.Intn(NeigAmt)
-                                    //fmt.Println(Dst)
-                                }
-                                SendAddr := NeigAddrArr[Dst]
-                                // send conf
-                                if DEBUG_OUTPUT {
-                                    fmt.Println(MyID, "sending", m, "to", SendAddr)
-                                }
-                                taskCh <- Task{m, SendAddr}
-                                TtlMap[confID] -= 1
-                            }
-                        } else if DEBUG_OUTPUT {
-                                fmt.Println(MyID, "discarded", m)
+                            taskCh <- Task{m, SendAddr}
+                            TtlMap[confID] -= 1
                         }
+                        //fmt.Println(MyID, TtlMap)
+                    } else if DEBUG_OUTPUT {
+                            fmt.Println(MyID, "discarded", m)
                     }
                 } else if m.Type_ == "conf" {
                     if m.Origin_ == MyID {
@@ -220,9 +214,9 @@ func proc(MyID int,
                         confID, err := strconv.Atoi(m.Data_)
                         msg.CheckError(err)
                         AllGot[confID] = true
-                        if DEBUG_OUTPUT{
+                       // if DEBUG_OUTPUT{
                             fmt.Println(AllGot)
-                        }
+                        //}
                         all := true
                         LocalLoop:
                         for i := range AllGot {
@@ -239,35 +233,31 @@ func proc(MyID int,
                         }
                     } else {
                         //pass further
-                        if !(NeigAmt <= 1) {
-                            _, ok := TtlMap[m.ID_]
-                            if !ok {
-                                TtlMap[m.ID_] = BaseTtl
-                            }
-
-                            SenderTmp :=  m.Sender_
-                            
-                            if TtlMap[m.ID_] > 0 {
-                                for ; TtlMap[m.ID_] > 0; {
-                                    Dst := rand.Intn(NeigAmt)
-                                    for ; NeigIdArr[Dst] == SenderTmp ; {
-                                        Dst = rand.Intn(NeigAmt)
-                                        //fmt.Println(Dst)
-                                    }
-                                    SendAddr := NeigAddrArr[Dst]
-                                    m.Sender_ = MyID
-
-                                    // pass further
-                                    if DEBUG_OUTPUT {
-                                        fmt.Println(MyID, "sending", m, "to", SendAddr)
-                                    }
-                                    taskCh <- Task{m, SendAddr}
-                                    TtlMap[m.ID_] -= 1
-                                }
-                            } else if DEBUG_OUTPUT {
-                                fmt.Println(MyID, "discarded", m)
-                            }
+                        _, ok := TtlMap[m.ID_]
+                        if !ok {
+                            TtlMap[m.ID_] = BaseTtl
                         }
+
+                        //.Println(MyID, TtlMap)
+                        if TtlMap[m.ID_] > 0 {
+                            for ; TtlMap[m.ID_] > 0; {
+                                //Dst := rand.Intn(NeigAmt)
+                                Dst := TtlMap[m.ID_] % NeigAmt
+                                    //fmt.Println(Dst)
+                                SendAddr := NeigAddrArr[Dst]
+                                m.Sender_ = MyID
+
+                                // pass further
+                                if DEBUG_OUTPUT {
+                                    fmt.Println(MyID, "sending", m, "to", SendAddr)
+                                }
+                                taskCh <- Task{m, SendAddr}
+                                TtlMap[m.ID_] -= 1
+                            }
+                        } else if DEBUG_OUTPUT {
+                            fmt.Println(MyID, "discarded", m)
+                        }
+                        //fmt.Println(MyID, TtlMap)
                     }
                 } else if m.Type_ == "timeout" {
                     qCh1 <- struct{}{}
