@@ -106,6 +106,8 @@ func proc(MyID int,
     MyAddr,err := net.ResolveUDPAddr("udp","127.0.0.1:"+strconv.Itoa(MyPort))
     msg.CheckError(err)
 
+    fmt.Println(MyID, MyAddr, NeigAddrArr)
+
     MyConn, err := net.ListenUDP("udp", MyAddr)
     msg.CheckError(err)
 
@@ -113,7 +115,7 @@ func proc(MyID int,
     taskCh    := make(chan Task, 4096)
     timeoutCh := make(chan time.Duration, 1)
 
-    timeoutCh <- time.Duration(time.Millisecond * 5)
+    timeoutCh <- time.Duration(time.Millisecond * 50)
 
     AllGot := make([]bool, len(gr))
     TtlMap := make(map[int]int)
@@ -123,7 +125,9 @@ func proc(MyID int,
     qCh2 := make(chan struct{}, 1)
 
     go ManageConn(MyConn, dataCh, timeoutCh, qCh1)
-    go ManageSendQueue(MyConn, taskCh, time.Microsecond * 50, qCh2)
+    go ManageSendQueue(MyConn, taskCh, time.Microsecond * 1, qCh2)
+
+    time.Sleep(time.Millisecond*1)
 
     // init gossip
     if MyID == 0 {
@@ -149,7 +153,7 @@ func proc(MyID int,
         select {
             case m = <- dataCh: {
                 if m.Type_ != "timeout" && DEBUG_OUTPUT {
-                    fmt.Println(MyID, "got msg:", m)
+                    //fmt.Println(MyID, "got msg:", m)
                 }
                 if m.Type_ == "msg" {
                     if !(NeigAmt <= 1) {
