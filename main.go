@@ -26,8 +26,9 @@ func main() {
     gr := graph.Generate(NProc, MinDegree, MaxDegree, BasePort)
     //fmt.Println(gr)
 
-    for i := 0; i < NProc; i++ {
-        go proc(i, gr, quitCh, BaseTtl)
+    go proc(0, gr, quitCh, BaseTtl, true)
+    for i := 1; i < NProc; i++ {
+        go proc(i, gr, quitCh, BaseTtl, false)
     }
 
     for i := 0; i < NProc; i++ {
