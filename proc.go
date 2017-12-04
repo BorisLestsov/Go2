@@ -79,14 +79,16 @@ func ManageSendQueue(MyConn *net.UDPConn,
     }
 }
 
-func InitGossip(MyID int, NeigAmt int, NeigAddrArr []*net.UDPAddr, taskCh chan Task){
-    Dst := rand.Intn(NeigAmt)
-    SendAddr := NeigAddrArr[Dst]
-    m := Task{msg.Message{ID_: MyID, Type_: "msg", Sender_: 0, Origin_: 0, Data_: "kek"}, SendAddr}
-    if DEBUG_OUTPUT {
-        fmt.Println(MyID, "sending", m, "to", SendAddr)
+func InitGossip(MyID int, NeigAmt int, NeigAddrArr []*net.UDPAddr, taskCh chan Task, ttl int){
+    for i := 0; i < ttl; i++ {
+        Dst := rand.Intn(NeigAmt)
+        SendAddr := NeigAddrArr[Dst]
+        m := Task{msg.Message{ID_: MyID, Type_: "msg", Sender_: 0, Origin_: 0, Data_: "kek"}, SendAddr}
+        if DEBUG_OUTPUT {
+            fmt.Println(MyID, "sending", m, "to", SendAddr)
+        }
+        taskCh <- m
     }
-    taskCh <- m
 }
 
 
@@ -111,8 +113,8 @@ func ProcessMsg(MyID int,
     
     if TtlMap[m.ID_] > 0 {
         for ; TtlMap[m.ID_] > 0; {
-            //Dst := rand.Intn(NeigAmt)
-            Dst := TtlMap[m.ID_] % NeigAmt
+            Dst := rand.Intn(NeigAmt)
+            //Dst := TtlMap[m.ID_] % NeigAmt
                 //fmt.Println(Dst)
             SendAddr := NeigAddrArr[Dst]
             m.Sender_ = MyID
@@ -132,8 +134,8 @@ func ProcessMsg(MyID int,
         // confirmation msg
         m := msg.Message{ID_: confID, Type_: "conf", Sender_: MyID, Origin_: m.Origin_, Data_: strconv.Itoa(MyID)}
         for ; TtlMap[confID] > 0; {
-            //st := rand.Intn(NeigAmt)
-            Dst := TtlMap[confID] % NeigAmt
+            Dst := rand.Intn(NeigAmt)
+            //Dst := TtlMap[confID] % NeigAmt
             SendAddr := NeigAddrArr[Dst]
             // send conf
             if DEBUG_OUTPUT {
@@ -181,8 +183,8 @@ func ProcessConfirmationMsg(m msg.Message,
 
         if TtlMap[m.ID_] > 0 {
             for ; TtlMap[m.ID_] > 0; {
-                //Dst := rand.Intn(NeigAmt)
-                Dst := TtlMap[m.ID_] % NeigAmt
+                Dst := rand.Intn(NeigAmt)
+                //Dst := TtlMap[m.ID_] % NeigAmt
                 SendAddr := NeigAddrArr[Dst]
                 m.Sender_ = MyID
 
@@ -256,7 +258,7 @@ func proc(MyID int,
 
     // init gossip
     if needInit {
-        InitGossip(MyID, NeigAmt, NeigAddrArr, taskCh)
+        InitGossip(MyID, NeigAmt, NeigAddrArr, taskCh, BaseTtl)
         for index, _ := range AllGot {
             AllGot[index] = false
         }
