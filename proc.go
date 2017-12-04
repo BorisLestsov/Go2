@@ -204,6 +204,7 @@ func ProcessConfirmationMsg(m msg.Message,
 func proc(MyID int, 
           gr graph.Graph,
           quitCh chan struct{},
+          killCh chan struct{},
           BaseTtl int,
           needInit bool) {
     
@@ -239,7 +240,7 @@ func proc(MyID int,
     taskCh    := make(chan Task, 4096)
     timeoutCh := make(chan time.Duration, 1)
 
-    timeoutCh <- time.Duration(time.Millisecond * 50)
+    timeoutCh <- time.Duration(0) //time.Millisecond * 50)
 
     AllGot := make([]bool, len(gr))
     TtlMap := make(map[int]int)
@@ -269,31 +270,36 @@ func proc(MyID int,
     for ;; ticks++ {
         select {
             case m = <- dataCh: {
-                if m.Type_ != "timeout" && DEBUG_OUTPUT {
-                    fmt.Println(MyID, "got msg:", m)
-                }
-                if m.Type_ == "msg" {
-                    ProcessMsg(MyID, m, NeigAddrArr, NeigAmt, BaseTtl, TtlMap, BaseConfID, taskCh)
-                } else if m.Type_ == "conf" {
-                    isFinished := ProcessConfirmationMsg(m, MyID, NeigAddrArr, NeigAmt, AllGot, TtlMap, BaseTtl, taskCh)
+                select {
+                    case <-killCh:{}
+                    default: {
+                        if m.Type_ != "timeout" && DEBUG_OUTPUT {
+                            fmt.Println(MyID, "got msg:", m)
+                        }
+                        if m.Type_ == "msg" {
+                            ProcessMsg(MyID, m, NeigAddrArr, NeigAmt, BaseTtl, TtlMap, BaseConfID, taskCh)
+                        } else if m.Type_ == "conf" {
+                            isFinished := ProcessConfirmationMsg(m, MyID, NeigAddrArr, NeigAmt, AllGot, TtlMap, BaseTtl, taskCh)
 
-                    if (isFinished) {
-                        fmt.Println("Finished in", ticks, "ticks")
-                        qCh1 <- struct{}{}
-                        qCh2 <- struct{}{}
-                        break MainLoop
+                            if (isFinished) {
+                                fmt.Println("Finished in", ticks, "ticks")
+                                break MainLoop
+                            }
+                        } else if m.Type_ == "timeout" {
+                            //break MainLoop
+                        } else {
+                            panic("Unknown message type"+m.Type_)
+                        }
                     }
-                } else if m.Type_ == "timeout" {
-                    qCh1 <- struct{}{}
-                    qCh2 <- struct{}{}
-                    break MainLoop
-                } else {
-                    panic("Unknown message type"+m.Type_)
                 }
             }
         }
     }
 
+    qCh1 <- struct{}{}
+    qCh2 <- struct{}{}
+
     //fmt.Println(MyID, "exited")
+
     quitCh <- struct{}{}
 }
